@@ -15,6 +15,7 @@ class Main(object):
         self.last_func_place = None
         self.last_pos = None
         self.last_result = None
+        self.shown = False
 
     @neovim.function("_langserver_doc", sync=True)
     def init_python(self, args):
@@ -119,16 +120,34 @@ class Main(object):
     def clear(self):
         if self.last_func_place is not None:
             self.last_func_place = None
-            self.echo("__doc__")
+            self.shown = False
+            self.vim.call("rpcnotify", 0, "Gui", "signature_hide")
 
     def echo_comma(self, func_place):
+        if not self.shown:
+            return
+
         if func_place is None:
             return
 
         pos = str(func_place[2])
         if pos != self.last_pos:
             self.last_pos = pos
-            self.echo('__doccom__' + pos)
+            # self.echo('__doccom__' + pos)
+            self.vim.call("rpcnotify", 0, "Gui", "signature_pos", pos)
+
+    def func_same(self, func_place):
+        if func_place is None and self.last_func_place is None:
+            return True
+
+        if func_place is None and self.last_func_place is not None:
+            return False
+
+        if func_place is not None and self.last_func_place is None:
+            return False
+
+        return func_place[0] == self.last_func_place[0] and \
+            func_place[1] == self.last_func_place[1]
 
     @neovim.rpc_export('request', sync=False)
     def request(self, context):
@@ -137,13 +156,14 @@ class Main(object):
 
         func_place = self.find_func(context['line'], context['col'])
         self.echo_comma(func_place)
-        if func_place == self.last_func_place:
+        if self.func_same(func_place):
             return
 
         self.last_func_place = func_place
 
         if func_place is None:
-            self.echo('__doc__')
+            self.shown = False
+            self.vim.call("rpcnotify", 0, "Gui", "signature_hide")
             return
 
         line, col, num_comma = func_place
@@ -164,10 +184,11 @@ class Main(object):
         if len(lines) == 1:
             return
 
-        self.echo('__docpos__' + str(line - context['line']) + ',' + str(
-            col - context['col']
-        ))
-        self.echo('__doc__' + lines[1])
+        self.shown = True
+        self.vim.call("rpcnotify", 0, "Gui", "signature_show",
+                      lines[1],
+                      [line - context['line'], col - context['col']],
+                      func_place[2])
 
     def old_request(self, context):
         proc = self.get_proc(context['filetype'])
