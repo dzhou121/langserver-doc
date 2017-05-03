@@ -130,7 +130,7 @@ class Main(object):
         if func_place is None:
             return
 
-        pos = str(func_place[2])
+        pos = func_place[2]
         if pos != self.last_pos:
             self.last_pos = pos
             # self.echo('__doccom__' + pos)
