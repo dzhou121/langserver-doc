@@ -185,8 +185,9 @@ class Main(object):
             return
 
         self.shown = True
+        result = lines[1].replace(" func(", "(")
         self.vim.call("rpcnotify", 0, "Gui", "signature_show",
-                      lines[1],
+                      result,
                       [line - context['line'], col - context['col']],
                       func_place[2])
 
